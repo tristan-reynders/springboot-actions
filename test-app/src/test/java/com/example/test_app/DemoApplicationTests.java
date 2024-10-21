@@ -10,4 +10,8 @@ class DemoApplicationTests {
 	void contextLoads() {
 	}
 
+  @Test
+  public void testThatAlwaysFails() {
+    assertEquals(1, 2, "This test must fail");
+  }
 }
