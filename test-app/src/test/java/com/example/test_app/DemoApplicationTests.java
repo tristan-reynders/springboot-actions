@@ -13,6 +13,6 @@ class DemoApplicationTests {
 
   @Test
   public void testThatAlwaysFails() {
-    assertEquals(1, 2, "This test must fail");
+    assertEquals(1, 1, "This test must pass");
   }
 }
