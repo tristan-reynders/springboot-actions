@@ -4,7 +4,7 @@ on: push
 jobs:
   test:
     runs-on: ubuntu-latest
-    name: Run unit tests no Java 17
+    name: Run unit tests on Java 17
     steps:
       - uses: actions/checkout@master
       - name: Setup java 17
