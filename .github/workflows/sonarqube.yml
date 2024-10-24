@@ -1,0 +1,62 @@
+name: Manage EC2 Instance
+
+on:
+  workflow_dispatch:
+
+jobs:
+  manage-ec2:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+        aws-region: eu-central-1
+
+    - name: Retrieve EC2 Instance ID
+      id: retrieve-ec2
+      run: |
+        INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=sonarqube" --query 'Reservations[*].Instances[*].InstanceId' --output text)
+        echo "Retrieved Instance ID: $INSTANCE_ID"
+        echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+
+    - name: Start EC2 Instance
+      id: start-ec2
+      run: |
+        aws ec2 start-instances --instance-ids ${{ env.INSTANCE_ID }}
+        echo "Starting EC2 instance: ${{ env.INSTANCE_ID }}"
+
+    - name: Wait for instance to be running and get public IP
+      id: wait-instance-running
+      run: |
+        INSTANCE_STATE=""
+        while [ "$INSTANCE_STATE" != "running" ]; do
+          INSTANCE_STATE=$(aws ec2 describe-instances --instance-ids ${{ env.INSTANCE_ID }} --query 'Reservations[*].Instances[*].State.Name' --output text)
+          echo "Current state: $INSTANCE_STATE"
+          sleep 10
+        done
+
+        PUBLIC_IP=$(aws ec2 describe-instances --instance-ids ${{ env.INSTANCE_ID }} --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
+        echo "Public IP: $PUBLIC_IP"
+        echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
+
+    - name: SonarQube Scan
+      uses: sonarsource/sonarqube-scan-action@v3.0.0
+      with:
+        projectBaseDir: test-app
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ env.PUBLIC_IP }}
+
+    - name: Stop EC2 Instance
+      id: stop-ec2
+      run: |
+        aws ec2 stop-instances --instance-ids ${{ env.INSTANCE_ID }}
+        echo "Stopping EC2 instance: ${{ env.INSTANCE_ID }}"
