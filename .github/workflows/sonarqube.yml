@@ -45,7 +45,12 @@ jobs:
 
         PUBLIC_IP=$(aws ec2 describe-instances --instance-ids ${{ env.INSTANCE_ID }} --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
         echo "Public IP: $PUBLIC_IP"
-        echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
+        echo "SONAR_URL=http://${PUBLIC_IP}:9000" >> $GITHUB_ENV
+
+        while ! curl -s "${SONAR_URL}/api/system/status" | grep -q '"status":"OK"'; do
+          echo "Waiting for SonarQube to be available..."
+          sleep 10
+        done
 
     - name: SonarQube Scan
       uses: sonarsource/sonarqube-scan-action@v3.0.0
@@ -53,7 +58,7 @@ jobs:
         projectBaseDir: test-app
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ env.PUBLIC_IP }}
+        SONAR_HOST_URL: ${{ env.SONAR_URL }}
 
     - name: Stop EC2 Instance
       id: stop-ec2
