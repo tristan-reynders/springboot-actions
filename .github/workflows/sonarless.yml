@@ -1,4 +1,4 @@
-name: Manage EC2 Instance
+name: Run Sonarless
 
 on:
   workflow_dispatch:
